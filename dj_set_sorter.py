@@ -32,6 +32,8 @@ class Track:
     source_id: str = ""
     audio_energy: float = 0.0
     audio_analyzed: bool = False
+    position_marks: list[dict] | None = None
+    tempos: list[dict] | None = None
 
     @property
     def label(self):
@@ -54,10 +56,12 @@ def track_from_node(node, path_override=""):
     p = path_override or attr(node, "FilePath", "Location", "path", "file", "Name")
     p = html.unescape(p).replace("file://localhost", "").replace("file://", "")
     if sys.platform == "win32" and p.startswith("/") and len(p) > 2 and p[2] == ":": p = p[1:]
+    marks = [dict(x.attrib) for x in node.findall("POSITION_MARK")]
+    tempos = [dict(x.attrib) for x in node.findall("TEMPO")]
     return Track(path=p, title=attr(node, "Title", "title", "Name"), artist=attr(node, "Artist", "artist"),
                  album=attr(node, "Album", "album"), genre=attr(node, "Genre", "genre"),
                  bpm=number(attr(node, "BPM", "AverageBpm", "Tempo", "bpm")),
-                 rating=int(round(number(attr(node, "Rating", "rating")) / 51)) if number(attr(node, "Rating", "rating")) > 5 else int(number(attr(node, "Rating", "rating"))), source_id=attr(node, "ID", "TrackID", "id"))
+                 rating=int(round(number(attr(node, "Rating", "rating")) / 51)) if number(attr(node, "Rating", "rating")) > 5 else int(number(attr(node, "Rating", "rating"))), source_id=attr(node, "ID", "TrackID", "id"), position_marks=marks, tempos=tempos)
 
 
 def parse_virtualdj(database: Path, playlist_files: list[Path]) -> tuple[list[Track], dict[str, list[Track]]]:
@@ -228,10 +232,14 @@ def write_rekordbox_xml(tracks, name: str, output: Path):
     ET.SubElement(root, "PRODUCT", Name="rekordbox", Version="7")
     collection = ET.SubElement(root, "COLLECTION", Entries=str(len(tracks)))
     for i, t in enumerate(tracks, 1):
-        ET.SubElement(collection, "TRACK", TrackID=str(i), Name=t.title or Path(t.path).stem,
+        track_node = ET.SubElement(collection, "TRACK", TrackID=str(i), Name=t.title or Path(t.path).stem,
                        Artist=t.artist, Album=t.album, Genre=t.genre, AverageBpm=str(t.bpm or ""),
                        Rating=str(min(255, max(0, t.rating * 51))), Comments=f"DJ Set Sorter Reihenfolge: {i:02d}",
                        Location="file://localhost" + t.path)
+        for mark in (t.position_marks or []):
+            ET.SubElement(track_node, "POSITION_MARK", **{str(k): str(v) for k, v in mark.items()})
+        for tempo in (t.tempos or []):
+            ET.SubElement(track_node, "TEMPO", **{str(k): str(v) for k, v in tempo.items()})
     playlists = ET.SubElement(root, "PLAYLISTS"); root_node = ET.SubElement(playlists, "NODE", Type="0", Name="ROOT", Count="1")
     pl = ET.SubElement(root_node, "NODE", Type="1", Name=name, KeyType="0", Entries=str(len(tracks)))
     for i in range(1, len(tracks) + 1): ET.SubElement(pl, "TRACK", Key=str(i))

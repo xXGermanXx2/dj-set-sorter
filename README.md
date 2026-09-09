@@ -372,6 +372,9 @@ Die Datei enthält:
 - BPM-Informationen, sofern vorhanden
 - Rating-Informationen im rekordbox-Format
 - eine Reihenfolgen-Markierung in den Track-Kommentaren (`DJ Set Sorter Reihenfolge: 01`, `02`, …)
+- Hot Cues und Memory Cues über `POSITION_MARK`
+- Loop-Start und Loop-Ende über `POSITION_MARK` vom Typ `4`
+- Beatgrid-/Tempo-Daten über `TEMPO`
 - eine neue Playlist mit dem eingegebenen Namen
 - die sortierte Track-Reihenfolge
 
