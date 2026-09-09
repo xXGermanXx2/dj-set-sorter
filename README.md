@@ -369,6 +369,7 @@ Die Datei enthält:
 
 - Track-Informationen
 - Dateipfade
+- URL-codierte Dateipfade mit Leerzeichen und Sonderzeichen
 - BPM-Informationen, sofern vorhanden
 - Rating-Informationen im rekordbox-Format
 - eine Reihenfolgen-Markierung in den Track-Kommentaren (`DJ Set Sorter Reihenfolge: 01`, `02`, …)
@@ -554,6 +555,6 @@ Privates Hobbyprojekt ohne Gewähr. Die Nutzung erfolgt auf eigene Verantwortung
 ## Automatisch gepflegter Projektstatus
 
 - Hauptprogramm: `dj_set_sorter.py`
-- Python-Funktionen: **15**
+- Python-Funktionen: **17**
 - Python-Klassen: **2**
 - Projektdateien: `dj_set_sorter.py`, `preview.py`, `start_dj_set_sorter.bat`, `sync_readme.py`, `test_dj_set_sorter.py`, `validate.py`

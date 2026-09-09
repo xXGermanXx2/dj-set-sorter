@@ -6,7 +6,7 @@ Keine Cloud, keine Änderungen an Originaldatenbanken. Rekordbox wird sicher
 ungefragt direkt beschrieben.
 """
 from __future__ import annotations
-import copy, datetime as dt, html, json, math, os, re, shutil, struct, subprocess, sys, wave, webbrowser, xml.etree.ElementTree as ET
+import copy, datetime as dt, html, json, math, os, re, shutil, struct, subprocess, sys, urllib.parse, wave, webbrowser, xml.etree.ElementTree as ET
 from dataclasses import dataclass
 from pathlib import Path
 from preview import write_preview_html
@@ -52,10 +52,37 @@ def number(value):
     except (TypeError, ValueError): return 0.0
 
 
+def path_from_uri(value: str) -> str:
+    """Wandelt lokale rekordbox-/VirtualDJ-URIs zuverlässig in Dateipfade um."""
+    value = html.unescape(str(value or "")).strip()
+    if value.lower().startswith("file://"):
+        parsed = urllib.parse.urlparse(value)
+        path = urllib.parse.unquote(parsed.path or "")
+        if parsed.netloc and parsed.netloc.lower() != "localhost":
+            path = "//" + parsed.netloc + path
+        if parsed.netloc.lower() == "localhost" and parsed.path == "":
+            path = ""
+    else:
+        path = urllib.parse.unquote(value)
+    # XML-Dateien aus Windows enthalten gelegentlich /C:/ oder C:/.
+    if re.match(r"^/[A-Za-z]:", path): path = path[1:]
+    if re.match(r"^[A-Za-z]:/", path): path = path.replace("/", "\\") if os.name == "nt" else path
+    return path
+
+
+def path_to_uri(path: str) -> str:
+    """Erzeugt eine rekordbox-kompatible lokale file://localhost-URI."""
+    raw = str(path or "")
+    if re.match(r"^[A-Za-z]:[\\/]", raw):
+        raw = "/" + raw.replace("\\", "/")
+    elif not raw.startswith("/"):
+        raw = "/" + raw
+    return "file://localhost" + urllib.parse.quote(raw, safe="/:\\")
+
+
 def track_from_node(node, path_override=""):
     p = path_override or attr(node, "FilePath", "Location", "path", "file", "Name")
-    p = html.unescape(p).replace("file://localhost", "").replace("file://", "")
-    if sys.platform == "win32" and p.startswith("/") and len(p) > 2 and p[2] == ":": p = p[1:]
+    p = path_from_uri(p)
     marks = [dict(x.attrib) for x in node.findall("POSITION_MARK")]
     tempos = [dict(x.attrib) for x in node.findall("TEMPO")]
     return Track(path=p, title=attr(node, "Title", "title", "Name"), artist=attr(node, "Artist", "artist"),
@@ -235,7 +262,7 @@ def write_rekordbox_xml(tracks, name: str, output: Path):
         track_node = ET.SubElement(collection, "TRACK", TrackID=str(i), Name=t.title or Path(t.path).stem,
                        Artist=t.artist, Album=t.album, Genre=t.genre, AverageBpm=str(t.bpm or ""),
                        Rating=str(min(255, max(0, t.rating * 51))), Comments=f"DJ Set Sorter Reihenfolge: {i:02d}",
-                       Location="file://localhost" + t.path)
+                       Location=path_to_uri(t.path))
         for mark in (t.position_marks or []):
             ET.SubElement(track_node, "POSITION_MARK", **{str(k): str(v) for k, v in mark.items()})
         for tempo in (t.tempos or []):
