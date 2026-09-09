@@ -370,6 +370,8 @@ Die Datei enthält:
 - Track-Informationen
 - Dateipfade
 - BPM-Informationen, sofern vorhanden
+- Rating-Informationen im rekordbox-Format
+- eine Reihenfolgen-Markierung in den Track-Kommentaren (`DJ Set Sorter Reihenfolge: 01`, `02`, …)
 - eine neue Playlist mit dem eingegebenen Namen
 - die sortierte Track-Reihenfolge
 
