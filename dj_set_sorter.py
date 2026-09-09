@@ -6,7 +6,7 @@ Keine Cloud, keine Änderungen an Originaldatenbanken. Rekordbox wird sicher
 ungefragt direkt beschrieben.
 """
 from __future__ import annotations
-import copy, datetime as dt, html, math, os, re, shutil, struct, subprocess, sys, wave, webbrowser, xml.etree.ElementTree as ET
+import copy, datetime as dt, html, json, math, os, re, shutil, struct, subprocess, sys, wave, webbrowser, xml.etree.ElementTree as ET
 from dataclasses import dataclass
 from pathlib import Path
 from preview import write_preview_html
@@ -17,6 +17,7 @@ except ModuleNotFoundError:  # Parser/Export können auf Minimalservern trotzdem
     Tk = StringVar = BooleanVar = Listbox = END = SINGLE = filedialog = messagebox = ttk = None
 
 APP = "DJ Set Sorter"
+STATE_FILE = Path.home() / ".dj_set_sorter_state.json"
 
 @dataclass
 class Track:
@@ -225,7 +226,29 @@ class App:
             raise RuntimeError("Tkinter fehlt. Unter Debian/Ubuntu installieren: sudo apt install python3-tk")
         self.root = root; root.title(APP); root.geometry("850x620"); root.minsize(760, 520)
         self.program = StringVar(value="VirtualDJ"); self.db = StringVar(); self.name = StringVar(value="Mein Set"); self.backup = BooleanVar(value=True); self.audio = BooleanVar(value=True)
-        self.playlists = {}; self._build(); self.db.set(str(autodetect(self.program.get()) or ""))
+        self.backup_status = StringVar(value="Noch kein Backup gespeichert.")
+        self.backup_state = self._read_backup_state()
+        self.playlists = {}; self._build(); self.db.set(str(autodetect(self.program.get()) or "")); self._refresh_backup_status()
+
+    def _read_backup_state(self):
+        try:
+            return json.loads(STATE_FILE.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            return {}
+
+    def _save_backup_state(self):
+        try:
+            STATE_FILE.write_text(json.dumps(self.backup_state, ensure_ascii=False, indent=2), encoding="utf-8")
+        except OSError:
+            pass
+
+    def _refresh_backup_status(self):
+        program = "VirtualDJ" if self.program.get() == "VirtualDJ" else "rekordbox"
+        info = self.backup_state.get(program)
+        if info:
+            self.backup_status.set(f"Letztes {program}-Backup: {info.get('time', 'unbekannt')} · {info.get('path', '')}")
+        else:
+            self.backup_status.set(f"Für {program} wurde bisher kein Backup gespeichert.")
 
     def _build(self):
         main = ttk.Frame(self.root, padding=18); main.pack(fill="both", expand=True)
@@ -245,12 +268,14 @@ class App:
         ttk.Label(bottom, text="Name der neuen Playlist:").grid(row=0, column=0, sticky="w"); ttk.Entry(bottom, textvariable=self.name, width=34).grid(row=0, column=1, padx=8, sticky="ew"); bottom.columnconfigure(1, weight=1)
         ttk.Checkbutton(bottom, text="Audio analysieren (Lautheit, Dynamik, Bass/Kick; benötigt ffmpeg)", variable=self.audio).grid(row=1, column=0, columnspan=2, sticky="w")
         ttk.Checkbutton(bottom, text="Vorher Datenbank sichern (Dokumente/database backup/<Programm>/…)", variable=self.backup).grid(row=2, column=0, columnspan=2, sticky="w", pady=8)
+        ttk.Button(bottom, text="Datenbank jetzt sichern", command=self.manual_backup).grid(row=3, column=0, sticky="w")
+        ttk.Label(bottom, textvariable=self.backup_status, foreground="#245", wraplength=680).grid(row=3, column=1, sticky="w", padx=8)
         actions = ttk.Frame(main); actions.pack(anchor="e", pady=(12, 0))
         ttk.Button(actions, text="HTML-Vorschau öffnen", command=self.preview, padding=8).pack(side="left", padx=(0, 8))
         ttk.Button(actions, text="Neue Set-Playlist erstellen", command=self.create, padding=8).pack(side="left")
         self.status = StringVar(value="Bereit. Originaldaten werden nicht verändert."); ttk.Label(main, textvariable=self.status, foreground="#245").pack(anchor="w", pady=(8, 0))
 
-    def _program_changed(self): self.db.set(str(autodetect(self.program.get()) or "")); self.playlists = {}; self.listbox.delete(0, END)
+    def _program_changed(self): self.db.set(str(autodetect(self.program.get()) or "")); self.playlists = {}; self.listbox.delete(0, END); self._refresh_backup_status()
     def choose_db(self):
         f = filedialog.askopenfilename(title="Datenbank/XML wählen", filetypes=[("XML", "*.xml"), ("Alle Dateien", "*.*")]); self.db.set(f) if f else None
     def load(self):
@@ -274,6 +299,19 @@ class App:
             messagebox.showwarning(APP, "Bitte Playlist(s) und einen Namen angeben."); return None, None
         tracks = unique_tracks(sum((list(self.playlists.values())[i] for i in picks), []))
         return name, sort_for_set(tracks, use_audio=self.audio.get())
+    def manual_backup(self):
+        p = Path(self.db.get()).expanduser()
+        if not p.exists():
+            return messagebox.showerror(APP, "Bitte zuerst die Datenbank/XML-Datei auswählen.")
+        try:
+            program = "VirtualDJ" if self.program.get() == "VirtualDJ" else "rekordbox"
+            target = backup_database(p, program)
+            now = dt.datetime.now().astimezone().strftime("%Y-%m-%d %H:%M:%S %z")
+            self.backup_state[program] = {"time": now, "path": str(target)}
+            self._save_backup_state(); self._refresh_backup_status()
+            messagebox.showinfo(APP, f"Backup erfolgreich erstellt:\n{target}")
+        except Exception as e:
+            messagebox.showerror(APP, f"Backup fehlgeschlagen:\n{e}")
     def preview(self):
         name, ordered = self.selected_sorted()
         if not ordered: return
@@ -287,6 +325,10 @@ class App:
         p = Path(self.db.get()).expanduser()
         try:
             backup = backup_database(p, "VirtualDJ" if self.program.get() == "VirtualDJ" else "rekordbox") if self.backup.get() else None
+            if backup:
+                program = "VirtualDJ" if self.program.get() == "VirtualDJ" else "rekordbox"
+                self.backup_state[program] = {"time": dt.datetime.now().astimezone().strftime("%Y-%m-%d %H:%M:%S %z"), "path": str(backup)}
+                self._save_backup_state(); self._refresh_backup_status()
             outdir = p.parent / "DJ Set Sorter Playlists"; outdir.mkdir(exist_ok=True)
             safe = re.sub(r"[^A-Za-z0-9äöüÄÖÜß _-]", "_", name).strip() or "Set"
             out = outdir / (safe + (".m3u" if self.program.get() == "VirtualDJ" else ".xml"))

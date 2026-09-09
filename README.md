@@ -48,6 +48,8 @@ Das Programm arbeitet lokal. Es lädt weder Audiodateien noch Datenbanken in die
 - optionale Audioanalyse anhand von Lautheit, Dynamik, Bass- und Transientenanteil
 - Aufteilung in Aufbau-, Steigerungs- und Peak-Phase
 - Optionales Backup vor der Verarbeitung
+- manueller Backup-Button für das aktuell ausgewählte Programm
+- dauerhafte Anzeige des letzten Backups beim nächsten Programmstart
 - Ausgabe als VirtualDJ-kompatible `.m3u`-Datei
 - Ausgabe als rekordbox-XML-Datei
 - Keine direkte Änderung der Originaldatenbank
@@ -172,9 +174,11 @@ Im Feld **Name der neuen Playlist** einen Namen eintragen, zum Beispiel:
 Freitag Club Set
 ```
 
-### 5. Backup auswählen
+### 5. Backup auswählen oder sofort erstellen
 
 Die Backup-Option ist standardmäßig aktiviert. Sie sollte vor dem ersten produktiven Einsatz aktiviert bleiben.
+
+Mit **Datenbank jetzt sichern** kann jederzeit unabhängig vom Playlist-Export ein Backup der aktuell ausgewählten Datenbank/XML-Datei erstellt werden. Unter dem Button zeigt die Anwendung den Zeitpunkt und den Speicherort des letzten Backups für das aktuell gewählte Programm an. Dieser Status wird dauerhaft in `~/.dj_set_sorter_state.json` gespeichert und bleibt beim nächsten Programmstart erhalten. Die Datei enthält nur Backup-Zeitpunkte und lokale Pfade, keine Musik- oder Datenbankinhalte.
 
 ### 6. HTML-Vorschau prüfen
 
@@ -210,6 +214,8 @@ Das Programm liest die VirtualDJ-`database.xml`. Zusätzlich werden folgende Pla
 - XML-Playlistdateien im Unterordner `My Lists`
 
 Die Anwendung durchsucht den ausgewählten VirtualDJ-Datenbankordner inzwischen rekursiv nach `.m3u`- und `.xml`-Playlistdateien. Werden dort keine Playlistdateien gefunden, wird automatisch eine Auswahl **Alle Tracks aus Datenbank** angeboten, damit die Datenbank trotzdem geprüft werden kann.
+
+VirtualDJ-Playlisten im XML-Format werden dabei genauso berücksichtigt wie M3U-Playlisten.
 
 Die konkreten Speicherorte können je nach Betriebssystem, VirtualDJ-Version, Benutzerkonto und Laufwerk abweichen.
 
