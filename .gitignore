@@ -4,5 +4,6 @@ __pycache__/
 .venv/
 venv/
 DJ Set Sorter Playlists/
+DJ Set Sorter Previews/
 *.bak
 .DS_Store

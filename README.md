@@ -176,11 +176,26 @@ Freitag Club Set
 
 Die Backup-Option ist standardmäßig aktiviert. Sie sollte vor dem ersten produktiven Einsatz aktiviert bleiben.
 
-### 6. Playlist erstellen
+### 6. HTML-Vorschau prüfen
+
+Vor dem Export auf **HTML-Vorschau öffnen** klicken. Die lokale Browseransicht zeigt Tracknummer, Interpret, Titel, Set-Phase, Energie-Wert, BPM, Genre, Audio-Wert und Dateipfad. Die Zeilen sind farblich markiert: grün für Aufbau, gelb für Steigerung und rot für Peak.
+
+Die Vorschau wird in `DJ Set Sorter Previews/<Name>_preview.html` neben der ausgewählten Datenbank- oder XML-Datei gespeichert. Sie ist eine reine Prüfansicht und verändert keine DJ-Datenbank.
+
+### 7. Playlist erstellen
 
 Auf **Neue Set-Playlist erstellen** klicken.
 
 Das Programm sortiert die Tracks, erzeugt die neue Datei und zeigt den Speicherort sowie – falls aktiviert – den Backup-Ordner an.
+
+### Empfohlener Prüfablauf
+
+1. Quell-Playlists laden und auswählen.
+2. Audioanalyse aktivieren, sofern `ffmpeg` installiert ist.
+3. HTML-Vorschau öffnen.
+4. Reihenfolge und Set-Phasen kontrollieren.
+5. Auf BPM-Sprünge, falsche Energieeinschätzungen, Breaks und Übergänge achten.
+6. Erst danach die neue Playlist erzeugen.
 
 ---
 
@@ -492,6 +507,7 @@ Dieses Projekt wird ohne Garantie für jede Version, jedes Betriebssystem oder j
 ```text
 DJ Set Sorter/
 ├── dj_set_sorter.py                 # Hauptprogramm mit Tkinter-GUI
+├── preview.py                       # Erzeugt die lokale HTML-Prüfvorschau
 ├── sync_readme.py                   # Aktualisiert den Projektstatus in README.md
 ├── validate.py                      # Schneller Selbsttest ohne pytest
 ├── test_dj_set_sorter.py            # pytest-kompatible Tests
@@ -523,4 +539,4 @@ Privates Hobbyprojekt ohne Gewähr. Die Nutzung erfolgt auf eigene Verantwortung
 - Hauptprogramm: `dj_set_sorter.py`
 - Python-Funktionen: **14**
 - Python-Klassen: **2**
-- Projektdateien: `dj_set_sorter.py`, `start_dj_set_sorter.bat`, `sync_readme.py`, `test_dj_set_sorter.py`, `validate.py`
+- Projektdateien: `dj_set_sorter.py`, `preview.py`, `start_dj_set_sorter.bat`, `sync_readme.py`, `test_dj_set_sorter.py`, `validate.py`

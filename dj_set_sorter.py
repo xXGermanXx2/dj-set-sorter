@@ -6,9 +6,10 @@ Keine Cloud, keine Änderungen an Originaldatenbanken. Rekordbox wird sicher
 ungefragt direkt beschrieben.
 """
 from __future__ import annotations
-import copy, datetime as dt, html, math, os, re, shutil, struct, subprocess, sys, wave, xml.etree.ElementTree as ET
+import copy, datetime as dt, html, math, os, re, shutil, struct, subprocess, sys, wave, webbrowser, xml.etree.ElementTree as ET
 from dataclasses import dataclass
 from pathlib import Path
+from preview import write_preview_html
 try:
     from tkinter import Tk, StringVar, BooleanVar, Listbox, END, SINGLE, filedialog, messagebox
     from tkinter import ttk
@@ -238,7 +239,9 @@ class App:
         ttk.Label(bottom, text="Name der neuen Playlist:").grid(row=0, column=0, sticky="w"); ttk.Entry(bottom, textvariable=self.name, width=34).grid(row=0, column=1, padx=8, sticky="ew"); bottom.columnconfigure(1, weight=1)
         ttk.Checkbutton(bottom, text="Audio analysieren (Lautheit, Dynamik, Bass/Kick; benötigt ffmpeg)", variable=self.audio).grid(row=1, column=0, columnspan=2, sticky="w")
         ttk.Checkbutton(bottom, text="Vorher Datenbank sichern (Dokumente/database backup/<Programm>/…)", variable=self.backup).grid(row=2, column=0, columnspan=2, sticky="w", pady=8)
-        ttk.Button(main, text="Neue Set-Playlist erstellen", command=self.create, padding=8).pack(anchor="e", pady=(12, 0))
+        actions = ttk.Frame(main); actions.pack(anchor="e", pady=(12, 0))
+        ttk.Button(actions, text="HTML-Vorschau öffnen", command=self.preview, padding=8).pack(side="left", padx=(0, 8))
+        ttk.Button(actions, text="Neue Set-Playlist erstellen", command=self.create, padding=8).pack(side="left")
         self.status = StringVar(value="Bereit. Originaldaten werden nicht verändert."); ttk.Label(main, textvariable=self.status, foreground="#245").pack(anchor="w", pady=(8, 0))
 
     def _program_changed(self): self.db.set(str(autodetect(self.program.get()) or "")); self.playlists = {}; self.listbox.delete(0, END)
@@ -256,10 +259,23 @@ class App:
             for n, ts in self.playlists.items(): self.listbox.insert(END, f"{n} ({len(ts)} Tracks)")
             self.status.set(f"{len(self.playlists)} Playlists geladen.")
         except Exception as e: messagebox.showerror(APP, f"Laden fehlgeschlagen:\n{e}")
-    def create(self):
+    def selected_sorted(self):
         picks = self.listbox.curselection(); name = self.name.get().strip()
-        if not picks or not name: return messagebox.showwarning(APP, "Bitte Playlist(s) und einen Namen angeben.")
-        p = Path(self.db.get()).expanduser(); tracks = unique_tracks(sum((list(self.playlists.values())[i] for i in picks), [])); ordered = sort_for_set(tracks, use_audio=self.audio.get())
+        if not picks or not name:
+            messagebox.showwarning(APP, "Bitte Playlist(s) und einen Namen angeben."); return None, None
+        tracks = unique_tracks(sum((list(self.playlists.values())[i] for i in picks), []))
+        return name, sort_for_set(tracks, use_audio=self.audio.get())
+    def preview(self):
+        name, ordered = self.selected_sorted()
+        if not ordered: return
+        p = Path(self.db.get()).expanduser(); outdir = p.parent / "DJ Set Sorter Previews"; outdir.mkdir(exist_ok=True)
+        safe = re.sub(r"[^A-Za-z0-9äöüÄÖÜß _-]", "_", name).strip() or "Set"
+        out = outdir / (safe + "_preview.html"); write_preview_html(ordered, name, out); webbrowser.open(out.as_uri())
+        self.status.set(f"HTML-Vorschau erstellt: {out.name}")
+    def create(self):
+        name, ordered = self.selected_sorted()
+        if not ordered: return
+        p = Path(self.db.get()).expanduser()
         try:
             backup = backup_database(p, "VirtualDJ" if self.program.get() == "VirtualDJ" else "rekordbox") if self.backup.get() else None
             outdir = p.parent / "DJ Set Sorter Playlists"; outdir.mkdir(exist_ok=True)
