@@ -90,6 +90,31 @@ def parse_virtualdj(database: Path, playlist_files: list[Path]) -> tuple[list[Tr
     return list(by_path.values()), playlists
 
 
+def virtualdj_playlist_candidates(database: Path) -> list[Path]:
+    """Findet nur echte Playlistkandidaten, nicht VDJ-System-/Backup-XMLs."""
+    ignored_names = {
+        "database.xml", "foldercache.xml", "foldercontent.xml", "history.xml",
+        "searchdb.xml", "settings.xml", "playlists.xml"
+    }
+    candidates = []
+    for item in database.parent.rglob("*"):
+        if not item.is_file() or item.resolve() == database.resolve():
+            continue
+        if any(part.lower() in {"backup", "backups", "database backup", "database_backup"} for part in item.parts):
+            continue
+        suffix = item.suffix.lower()
+        stem = item.stem.lower()
+        if any(token in stem for token in ("foldercache", "foldercontent", "database", "broken database", "searchdb", "settings")):
+            continue
+        if suffix == ".m3u":
+            candidates.append(item)
+        elif suffix == ".xml" and item.name.lower() not in ignored_names:
+            # XML-Playlisten liegen typischerweise in "My Lists"; benannte XMLs
+            # im VDJ-Ordner bleiben ebenfalls möglich, Systemdateien sind oben ausgeschlossen.
+            candidates.append(item)
+    return candidates
+
+
 def parse_rekordbox_xml(xml_file: Path) -> tuple[list[Track], dict[str, list[Track]]]:
     root = ET.parse(xml_file).getroot()
     by_id = {}
@@ -224,7 +249,7 @@ class App:
     def __init__(self, root):
         if ttk is None:
             raise RuntimeError("Tkinter fehlt. Unter Debian/Ubuntu installieren: sudo apt install python3-tk")
-        self.root = root; root.title(APP); root.geometry("850x620"); root.minsize(760, 520)
+        self.root = root; root.title(APP); root.geometry("1000x760"); root.minsize(900, 650)
         self.program = StringVar(value="VirtualDJ"); self.db = StringVar(); self.name = StringVar(value="Mein Set"); self.backup = BooleanVar(value=True); self.audio = BooleanVar(value=True)
         self.backup_status = StringVar(value="Noch kein Backup gespeichert.")
         self.backup_state = self._read_backup_state()
@@ -283,7 +308,7 @@ class App:
         if not p.exists(): return messagebox.showerror(APP, "Die Datenbank/XML-Datei wurde nicht gefunden.")
         try:
             if self.program.get() == "VirtualDJ":
-                files = [x for x in p.parent.rglob("*") if x.is_file() and x.suffix.lower() in (".m3u", ".xml") and x.resolve() != p.resolve()]
+                files = virtualdj_playlist_candidates(p)
                 _, self.playlists = parse_virtualdj(p, files)
             else: _, self.playlists = parse_rekordbox_xml(p)
             self.listbox.delete(0, END)

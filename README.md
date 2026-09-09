@@ -217,6 +217,8 @@ Die Anwendung durchsucht den ausgewählten VirtualDJ-Datenbankordner inzwischen 
 
 VirtualDJ-Playlisten im XML-Format werden dabei genauso berücksichtigt wie M3U-Playlisten.
 
+Interne Dateien wie `foldercache`, `foldercontent`, `searchdb`, `settings`, `database_backup` oder beschädigte Datenbankkopien werden nicht mehr als Playlists angezeigt. Das Programmfenster startet außerdem größer, damit die Playlistliste und die Backup-Statuszeile besser lesbar sind.
+
 Die konkreten Speicherorte können je nach Betriebssystem, VirtualDJ-Version, Benutzerkonto und Laufwerk abweichen.
 
 ### Typischer Pfad
@@ -547,6 +549,6 @@ Privates Hobbyprojekt ohne Gewähr. Die Nutzung erfolgt auf eigene Verantwortung
 ## Automatisch gepflegter Projektstatus
 
 - Hauptprogramm: `dj_set_sorter.py`
-- Python-Funktionen: **14**
+- Python-Funktionen: **15**
 - Python-Klassen: **2**
 - Projektdateien: `dj_set_sorter.py`, `preview.py`, `start_dj_set_sorter.bat`, `sync_readme.py`, `test_dj_set_sorter.py`, `validate.py`
