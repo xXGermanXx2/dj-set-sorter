@@ -73,6 +73,7 @@ def parse_virtualdj(database: Path, playlist_files: list[Path]) -> tuple[list[Tr
             for line in pf.read_text(encoding="utf-8", errors="ignore").splitlines():
                 line = line.strip()
                 if line and not line.startswith("#"):
+                    if not os.path.isabs(line): line = str((pf.parent / line).resolve())
                     tracks.append(by_path.get(os.path.normcase(os.path.normpath(line)), Track(path=line)))
         else:
             try:
@@ -81,7 +82,10 @@ def parse_virtualdj(database: Path, playlist_files: list[Path]) -> tuple[list[Tr
                     p = attr(n, "FilePath", "Location", "path", "file")
                     if p: tracks.append(by_path.get(os.path.normcase(os.path.normpath(p)), track_from_node(n)))
             except ET.ParseError: pass
-        playlists[pf.stem] = unique_tracks(tracks)
+        if tracks:
+            playlists[pf.stem] = unique_tracks(tracks)
+    if not playlists and by_path:
+        playlists["Alle Tracks aus Datenbank"] = list(by_path.values())
     return list(by_path.values()), playlists
 
 
@@ -96,8 +100,10 @@ def parse_rekordbox_xml(xml_file: Path) -> tuple[list[Track], dict[str, list[Tra
         # rekordbox nutzt Type=1 für Playlists; Type=0 bezeichnet meist Ordner.
         name = attr(p, "Name", default="Playlist")
         tracks = [by_id.get(attr(x, "Key")) for x in p.iter("TRACK")]
-        if tracks and attr(p, "Type") == "1":
+        if tracks and attr(p, "Type") in ("0", "1"):
             playlists[name] = unique_tracks([x for x in tracks if x])
+    if not playlists and by_id:
+        playlists["Alle Tracks aus XML"] = list(by_id.values())
     return list(by_id.values()), playlists
 
 
@@ -252,12 +258,15 @@ class App:
         if not p.exists(): return messagebox.showerror(APP, "Die Datenbank/XML-Datei wurde nicht gefunden.")
         try:
             if self.program.get() == "VirtualDJ":
-                files = list(p.parent.glob("*.m3u")) + list((p.parent / "My Lists").glob("*.xml"))
+                files = [x for x in p.parent.rglob("*") if x.is_file() and x.suffix.lower() in (".m3u", ".xml") and x.resolve() != p.resolve()]
                 _, self.playlists = parse_virtualdj(p, files)
             else: _, self.playlists = parse_rekordbox_xml(p)
             self.listbox.delete(0, END)
             for n, ts in self.playlists.items(): self.listbox.insert(END, f"{n} ({len(ts)} Tracks)")
-            self.status.set(f"{len(self.playlists)} Playlists geladen.")
+            if self.playlists:
+                self.status.set(f"{len(self.playlists)} Playlists geladen.")
+            else:
+                self.status.set("Keine Playlists gefunden. Bitte Datenbank/XML und Export prüfen.")
         except Exception as e: messagebox.showerror(APP, f"Laden fehlgeschlagen:\n{e}")
     def selected_sorted(self):
         picks = self.listbox.curselection(); name = self.name.get().strip()

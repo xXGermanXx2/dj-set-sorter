@@ -209,6 +209,8 @@ Das Programm liest die VirtualDJ-`database.xml`. Zusätzlich werden folgende Pla
 - XML-Playlistdateien im Datenbankordner
 - XML-Playlistdateien im Unterordner `My Lists`
 
+Die Anwendung durchsucht den ausgewählten VirtualDJ-Datenbankordner inzwischen rekursiv nach `.m3u`- und `.xml`-Playlistdateien. Werden dort keine Playlistdateien gefunden, wird automatisch eine Auswahl **Alle Tracks aus Datenbank** angeboten, damit die Datenbank trotzdem geprüft werden kann.
+
 Die konkreten Speicherorte können je nach Betriebssystem, VirtualDJ-Version, Benutzerkonto und Laufwerk abweichen.
 
 ### Typischer Pfad
@@ -480,6 +482,8 @@ Sicherstellen, dass:
 - rekordbox geschlossen oder neu geladen wurde
 - die XML-Datei nicht manuell beschädigt wurde
 - der Import über die XML-/Playlist-Funktion von rekordbox erfolgt
+
+Wenn rekordbox-Playlist-Nodes nicht erkannt werden, bietet das Programm ersatzweise **Alle Tracks aus XML** an. Dadurch kann die XML-Datei trotzdem getestet werden; für einzelne Playlistnamen muss die XML-Struktur anschließend geprüft werden.
 - die Originalbibliothek vorher gesichert wurde
 
 ### Die Reihenfolge ist musikalisch nicht perfekt
