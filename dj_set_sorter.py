@@ -6,7 +6,7 @@ Keine Cloud, keine Änderungen an Originaldatenbanken. Rekordbox wird sicher
 ungefragt direkt beschrieben.
 """
 from __future__ import annotations
-import copy, datetime as dt, html, os, re, shutil, sys, xml.etree.ElementTree as ET
+import copy, datetime as dt, html, math, os, re, shutil, struct, subprocess, sys, wave, xml.etree.ElementTree as ET
 from dataclasses import dataclass
 from pathlib import Path
 try:
@@ -28,6 +28,8 @@ class Track:
     rating: int = 0
     energy: float = 0.0
     source_id: str = ""
+    audio_energy: float = 0.0
+    audio_analyzed: bool = False
 
     @property
     def label(self):
@@ -118,9 +120,54 @@ def energy_score(t: Track, position: float) -> float:
     return round(bpm_score * .45 + genre_score * .40 + rating_score * .15, 2)
 
 
-def sort_for_set(tracks: list[Track], ramp: float = 1.0) -> list[Track]:
+def analyze_audio(t: Track, max_seconds: int = 120) -> float:
+    """Analysiert bis zu 120 s Audio über ffmpeg, ohne Audiodaten zu speichern.
+
+    Die Merkmale sind robuste Näherungen: Lautheit, Dynamik, Bassanteil und
+    Transienten/Kick-Anteil. Fehlt ffmpeg oder ist der Pfad ungültig, bleibt
+    die Metadaten-Sortierung aktiv.
+    """
+    if t.audio_analyzed: return t.audio_energy
+    t.audio_analyzed = True
+    try:
+        cmd = ["ffmpeg", "-v", "error", "-i", t.path, "-t", str(max_seconds),
+               "-ac", "1", "-ar", "11025", "-f", "s16le", "pipe:1"]
+        raw = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
+                             timeout=max_seconds + 20, check=True).stdout
+        samples = [x / 32768.0 for x in struct.unpack("<" + "h" * (len(raw) // 2), raw)]
+        if len(samples) < 11025: return 0.0
+        step = 11025 // 20
+        windows = [samples[i:i + step] for i in range(0, len(samples) - step, step)]
+        rms = [math.sqrt(sum(x * x for x in w) / len(w)) for w in windows]
+        overall = math.sqrt(sum(x * x for x in samples) / len(samples))
+        loudness = max(0.0, min(100.0, (20 * math.log10(max(overall, 1e-5)) + 60) * 1.67))
+        dynamics = max(0.0, min(100.0, (max(rms) - min(rms)) * 220))
+        # Tiefe Energie als geglättete Signalenergie; Transienten als schnelle Hüllkurvenänderung.
+        low = []; transients = []
+        prev = 0.0
+        for w in windows:
+            smooth = 0.0
+            for x in w:
+                smooth = smooth * .985 + abs(x) * .015
+            low.append(smooth)
+            transients.append(max(0.0, smooth - prev)); prev = smooth
+        bass = max(0.0, min(100.0, (sum(low) / len(low)) * 230))
+        kick = max(0.0, min(100.0, (sum(transients) / len(transients)) * 900))
+        t.audio_energy = round(loudness * .35 + dynamics * .15 + bass * .25 + kick * .25, 2)
+    except (OSError, subprocess.SubprocessError, ValueError, struct.error, ZeroDivisionError):
+        t.audio_energy = 0.0
+    return t.audio_energy
+
+
+def combined_energy_score(t: Track, use_audio: bool = True) -> float:
+    metadata = energy_score(t, 0)
+    audio = analyze_audio(t) if use_audio else 0.0
+    return round(metadata * .55 + audio * .45, 2) if use_audio and t.audio_analyzed and audio else metadata
+
+
+def sort_for_set(tracks: list[Track], ramp: float = 1.0, use_audio: bool = True) -> list[Track]:
     if not tracks: return []
-    for t in tracks: t.energy = energy_score(t, 0)
+    for t in tracks: t.energy = combined_energy_score(t, use_audio)
     ordered = sorted(tracks, key=lambda x: (x.energy, x.bpm or 0, x.artist.lower(), x.title.lower()))
     # Drei dramaturgische Zonen; stabile Energie-Steigerung ohne brutale Sprünge.
     n = len(ordered); a = max(1, round(n * .45)); b = max(a + 1, round(n * .82)) if n > 2 else n
@@ -170,7 +217,7 @@ class App:
         if ttk is None:
             raise RuntimeError("Tkinter fehlt. Unter Debian/Ubuntu installieren: sudo apt install python3-tk")
         self.root = root; root.title(APP); root.geometry("850x620"); root.minsize(760, 520)
-        self.program = StringVar(value="VirtualDJ"); self.db = StringVar(); self.name = StringVar(value="Mein Set"); self.backup = BooleanVar(value=True)
+        self.program = StringVar(value="VirtualDJ"); self.db = StringVar(); self.name = StringVar(value="Mein Set"); self.backup = BooleanVar(value=True); self.audio = BooleanVar(value=True)
         self.playlists = {}; self._build(); self.db.set(str(autodetect(self.program.get()) or ""))
 
     def _build(self):
@@ -189,7 +236,8 @@ class App:
         scroll = ttk.Scrollbar(mid, orient="vertical", command=self.listbox.yview); scroll.pack(side="right", fill="y"); self.listbox.config(yscrollcommand=scroll.set)
         bottom = ttk.LabelFrame(main, text="3. Ausgabe", padding=10); bottom.pack(fill="x")
         ttk.Label(bottom, text="Name der neuen Playlist:").grid(row=0, column=0, sticky="w"); ttk.Entry(bottom, textvariable=self.name, width=34).grid(row=0, column=1, padx=8, sticky="ew"); bottom.columnconfigure(1, weight=1)
-        ttk.Checkbutton(bottom, text="Vorher Datenbank sichern (Dokumente/database backup/<Programm>/…)", variable=self.backup).grid(row=1, column=0, columnspan=2, sticky="w", pady=8)
+        ttk.Checkbutton(bottom, text="Audio analysieren (Lautheit, Dynamik, Bass/Kick; benötigt ffmpeg)", variable=self.audio).grid(row=1, column=0, columnspan=2, sticky="w")
+        ttk.Checkbutton(bottom, text="Vorher Datenbank sichern (Dokumente/database backup/<Programm>/…)", variable=self.backup).grid(row=2, column=0, columnspan=2, sticky="w", pady=8)
         ttk.Button(main, text="Neue Set-Playlist erstellen", command=self.create, padding=8).pack(anchor="e", pady=(12, 0))
         self.status = StringVar(value="Bereit. Originaldaten werden nicht verändert."); ttk.Label(main, textvariable=self.status, foreground="#245").pack(anchor="w", pady=(8, 0))
 
@@ -211,7 +259,7 @@ class App:
     def create(self):
         picks = self.listbox.curselection(); name = self.name.get().strip()
         if not picks or not name: return messagebox.showwarning(APP, "Bitte Playlist(s) und einen Namen angeben.")
-        p = Path(self.db.get()).expanduser(); tracks = unique_tracks(sum((list(self.playlists.values())[i] for i in picks), [])); ordered = sort_for_set(tracks)
+        p = Path(self.db.get()).expanduser(); tracks = unique_tracks(sum((list(self.playlists.values())[i] for i in picks), [])); ordered = sort_for_set(tracks, use_audio=self.audio.get())
         try:
             backup = backup_database(p, "VirtualDJ" if self.program.get() == "VirtualDJ" else "rekordbox") if self.backup.get() else None
             outdir = p.parent / "DJ Set Sorter Playlists"; outdir.mkdir(exist_ok=True)

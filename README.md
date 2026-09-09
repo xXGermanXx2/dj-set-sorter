@@ -45,6 +45,7 @@ Das Programm arbeitet lokal. Es lädt weder Audiodateien noch Datenbanken in die
 - Zusammenführen der ausgewählten Tracks ohne Duplikate
 - Eigener Name für die neue Set-Playlist
 - Energie-Sortierung anhand von BPM, Genre und Rating
+- optionale Audioanalyse anhand von Lautheit, Dynamik, Bass- und Transientenanteil
 - Aufteilung in Aufbau-, Steigerungs- und Peak-Phase
 - Optionales Backup vor der Verarbeitung
 - Ausgabe als VirtualDJ-kompatible `.m3u`-Datei
@@ -73,6 +74,24 @@ Unter Debian/Ubuntu kann es nachinstalliert werden:
 sudo apt update
 sudo apt install python3-tk
 ```
+
+### Zusätzlich für Audioanalyse
+
+Für die Audioanalyse wird `ffmpeg` benötigt. Das Programm verwendet ffmpeg nur zum lokalen Dekodieren kurzer Audioabschnitte; es werden keine Audiodateien gespeichert oder hochgeladen.
+
+Unter Debian/Ubuntu:
+
+```bash
+sudo apt install ffmpeg
+```
+
+Unter macOS mit Homebrew:
+
+```bash
+brew install ffmpeg
+```
+
+Unter Windows kann ffmpeg von [ffmpeg.org](https://ffmpeg.org/download.html) installiert und zum PATH hinzugefügt werden. Wenn ffmpeg fehlt, funktioniert das Programm weiterhin mit der Metadaten-Sortierung.
 
 ### Unterstützte DJ-Programme
 
@@ -237,7 +256,7 @@ Vor einem Import in rekordbox:
 
 ## Sortierlogik
 
-Die Energie wird als heuristischer Wert zwischen ungefähr 0 und 100 berechnet. Der Wert basiert auf drei verfügbaren Metadaten:
+Die Energie wird als heuristischer Wert zwischen ungefähr 0 und 100 berechnet. Standardmäßig ist in der GUI die Audioanalyse aktiviert. Der Wert kombiniert Metadaten mit lokal berechneten Audio-Merkmalen:
 
 | Faktor | Bedeutung |
 |---|---|
@@ -245,11 +264,14 @@ Die Energie wird als heuristischer Wert zwischen ungefähr 0 und 100 berechnet. 
 | Genre | Typische Genre-Begriffe wie Ambient, Deep, House, Techno oder Hardstyle erhalten unterschiedliche Grundwerte. |
 | Rating | Ein vorhandenes Rating wird als zusätzliches Qualitätssignal berücksichtigt. |
 
+### Audio-Merkmale
+
+Das Programm dekodiert pro Track maximal 120 Sekunden und berechnet daraus Lautheit, Dynamik, Bassanteil sowie schnelle Transienten als Hinweis auf Kick- und Schlagzeugdruck. Das ist keine vollständige Musikproduktionsanalyse; insbesondere die Kick-Erkennung ist eine robuste Näherung und keine Instrumententrennung.
+
 Die aktuelle Gewichtung ist ungefähr:
 
-- BPM: **45 %**
-- Genre: **40 %**
-- Rating: **15 %**
+- Metadaten gesamt: **55 %** (BPM 24,75 %, Genre 22 %, Rating 8,25 %)
+- Audio gesamt: **45 %** (Lautheit 15,75 %, Dynamik 6,75 %, Bass 11,25 %, Transienten/Kick 11,25 %)
 
 Die Tracks werden danach ungefähr in diese Set-Abschnitte eingeteilt:
 
@@ -259,19 +281,18 @@ Die Tracks werden danach ungefähr in diese Set-Abschnitte eingeteilt:
 | Mitte / Steigerung | ca. 37 % | Energie aufsteigend, mehr Druck |
 | Ende / Peak | ca. 18 % | stärkste Tracks zuerst innerhalb des Peak-Blocks |
 
-### Wichtig: keine Audioanalyse
+### Nicht automatisch analysiert
 
 Das Programm analysiert derzeit nicht automatisch:
 
-- Kick-Härte
-- Lautheit oder RMS-Wert
-- musikalische Phrasen
+- exakte Kick-Härte oder Instrumententrennung
+- musikalische Phrasen und Taktpositionen
 - Breaks und Drops
 - Vocal-Dichte
 - Tonart-Kompatibilität
 - tatsächliche Club-Wirkung eines Tracks
 
-Die Sortierung ist daher eine praktische Metadaten-Heuristik und keine vollständige musikalische Analyse. Für bessere Ergebnisse sollten BPM, Genre und Rating in VirtualDJ beziehungsweise rekordbox gepflegt sein.
+Die Sortierung ist damit eine kombinierte Audio- und Metadaten-Heuristik, aber keine vollständige musikalische Analyse. Für bessere Ergebnisse sollten BPM, Genre und Rating in VirtualDJ beziehungsweise rekordbox gepflegt sein. Die Audioanalyse kann in der GUI abgewählt werden, wenn ffmpeg nicht installiert ist oder die Verarbeitung schneller erfolgen soll.
 
 ---
 
@@ -500,6 +521,6 @@ Privates Hobbyprojekt ohne Gewähr. Die Nutzung erfolgt auf eigene Verantwortung
 ## Automatisch gepflegter Projektstatus
 
 - Hauptprogramm: `dj_set_sorter.py`
-- Python-Funktionen: **12**
+- Python-Funktionen: **14**
 - Python-Klassen: **2**
 - Projektdateien: `dj_set_sorter.py`, `start_dj_set_sorter.bat`, `sync_readme.py`, `test_dj_set_sorter.py`, `validate.py`
