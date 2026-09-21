@@ -17,6 +17,7 @@ except ModuleNotFoundError:  # Parser/Export können auf Minimalservern trotzdem
     Tk = StringVar = BooleanVar = Listbox = END = SINGLE = filedialog = messagebox = ttk = None
 
 APP = "DJ Set Sorter"
+REKORDBOX_VERSIONS = ("6", "7")
 STATE_FILE = Path.home() / ".dj_set_sorter_state.json"
 
 @dataclass
@@ -318,7 +319,7 @@ class App:
         ttk.Label(main, text="Playlists auswählen → Backup optional → Energie-Dramaturgie erzeugen", foreground="#555").pack(anchor="w", pady=(0, 14))
         top = ttk.LabelFrame(main, text="1. DJ-Programm und Datenquelle", padding=10); top.pack(fill="x")
         ttk.Label(top, text="Programm:").grid(row=0, column=0, sticky="w")
-        combo = ttk.Combobox(top, textvariable=self.program, values=["VirtualDJ", "rekordbox 6/7"], state="readonly", width=18); combo.grid(row=0, column=1, padx=8)
+        combo = ttk.Combobox(top, textvariable=self.program, values=["VirtualDJ", f"rekordbox {REKORDBOX_VERSIONS[0]}/{REKORDBOX_VERSIONS[1]}"], state="readonly", width=18); combo.grid(row=0, column=1, padx=8)
         combo.bind("<<ComboboxSelected>>", lambda e: self._program_changed())
         ttk.Entry(top, textvariable=self.db).grid(row=1, column=0, columnspan=2, sticky="ew", pady=8); top.columnconfigure(1, weight=1)
         ttk.Button(top, text="Datenbank/XML wählen…", command=self.choose_db).grid(row=1, column=2, padx=5)
