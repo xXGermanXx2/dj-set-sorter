@@ -559,4 +559,4 @@ Die MIT-Lizenz erlaubt die private und kommerzielle Nutzung, Kopien, Änderungen
 - Hauptprogramm: `dj_set_sorter.py`
 - Python-Funktionen: **17**
 - Python-Klassen: **2**
-- Projektdateien: `dj_set_sorter.py`, `preview.py`, `start_dj_set_sorter.bat`, `sync_readme.py`, `test_dj_set_sorter.py`, `validate.py`
+- Projektdateien: `LICENSE`, `dj_set_sorter.py`, `preview.py`, `start_dj_set_sorter.bat`, `sync_readme.py`, `test_dj_set_sorter.py`, `validate.py`
