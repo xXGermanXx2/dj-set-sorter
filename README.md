@@ -550,7 +550,9 @@ Die Quellen dienen der Orientierung zu Playlist- und XML-Workflows. Die konkrete
 
 ## Lizenz
 
-Privates Hobbyprojekt ohne Gewähr. Die Nutzung erfolgt auf eigene Verantwortung. Vor produktiver Nutzung immer ein Backup erstellen und die erzeugte Playlist zunächst in der DJ-Software kontrollieren.
+Dieses Projekt steht unter der **MIT License**. Die vollständige Lizenz steht in der Datei [`LICENSE`](LICENSE).
+
+Die MIT-Lizenz erlaubt die private und kommerzielle Nutzung, Kopien, Änderungen, Weitergabe und Unterlizenzierung, sofern der Copyright- und Lizenzhinweis erhalten bleibt. Die Software wird ohne Gewähr bereitgestellt. Vor produktiver Nutzung immer ein Backup erstellen und die erzeugte Playlist zunächst in der DJ-Software kontrollieren.
 
 ## Automatisch gepflegter Projektstatus
 
